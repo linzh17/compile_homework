@@ -1,0 +1,10 @@
+import java.io.*;
+import java.util.Random;
+public class test{ 
+    public static int selfRandom(int i){
+        Random rand=new Random();
+        int result=(int)(Math.random()*(i+1));
+        return result;
+    }
+    
+}

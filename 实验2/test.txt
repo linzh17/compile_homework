@@ -1,0 +1,204 @@
+A(){
+    return 1;
+}
+B(){
+    var i;
+    i = RANDOM(3);
+    if(i==3)
+    return 0;
+    else return 1;
+}
+C(var nowC;var bC[];){
+    if(nowC == 0)
+    return 1;
+    else return bC[nowC-1];
+}
+D(var nowD;var bD[];){
+    if(nowD == 0)
+    return 1;
+    else {
+        var j;
+        j = RANDOM(9);
+        if(j == 9)
+        return 0;
+        else 
+        return bD[nowD-1];
+    }
+}
+E(var nowE;var bE[];){
+    if(nowE == 0) return 1;
+    else
+    {
+        while(nowE>0)
+        {
+            nowE=nowE-1;
+            if(bE[nowE]==0)
+            {return 0;}
+        }
+    }
+    return 1;
+}
+Sorce(var pos;var I;var J;){
+    var sorceResult;
+    sorceResult = 0;
+    if(I==0){
+        if(J==1){
+        if(pos==1)sorceResult = 5;
+        else sorceResult = 0;
+        }
+        else sorceResult = 1;
+    }
+    if(I==1){
+        if(J==0){
+            if(pos==1)sorceResult = 0;
+            else sorceResult = 5;
+        }
+        else sorceResult = 3;
+    }
+    return sorceResult;
+}
+main(){
+    var a[200];
+    var b[200];
+    var sorceA;
+    sorceA =0;
+    var sorceB;
+    sorceB =0;
+    var sorceC;
+    sorceC = 0;
+    var sorceD;
+    sorceD = 0;
+    var sorceE;
+    sorceE = 0;
+    var temp;
+    var tempa;
+    var tempb;
+    var time;
+    time = 0;
+    while(time<200){
+        tempa = A();
+        a[time]=tempa;
+        tempb = B();
+        b[time]=tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceA = sorceA+temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceB = sorceB +temp;
+        time = time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = A();
+        a[time] = tempa;
+        tempb = C(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceA =sorceA + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceC = sorceC + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = A();
+        a[time] = tempa;
+        tempb = D(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceA =sorceA + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceD = sorceD + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = A();
+        a[time] = tempa;
+        tempb = E(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceA =sorceA + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceE = sorceE + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = B();
+        a[time] = tempa;
+        tempb = C(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceB =sorceB + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceC = sorceC + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = B();
+        a[time] = tempa;
+        tempb = D(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceB =sorceB + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceD = sorceD + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = B();
+        a[time] = tempa;
+        tempb = E(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceB =sorceB + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceE = sorceE + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = C(time;b;);
+        a[time] = tempa;
+        tempb = D(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceC =sorceC + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceD = sorceD + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = C(time;b;);
+        a[time] = tempa;
+        tempb = E(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceC =sorceC + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceE = sorceE + temp;
+        time=time+1;
+    }
+    time = 0;
+    while(time<200){
+        tempa = D(time;b;);
+        a[time] = tempa;
+        tempb = E(time;a;);
+        b[time] = tempb;
+        temp = Sorce(1;tempa;tempb;);
+        sorceD =sorceD + temp;
+        temp = Sorce(0;tempa;tempb;);
+        sorceE = sorceE + temp;
+        time=time+1;
+    }
+    
+
+    print(sorceA);
+    print(sorceB);
+    print(sorceC);
+    print(sorceD);
+    print(sorceE);
+}

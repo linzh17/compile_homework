@@ -1,0 +1,75 @@
+//process.cup
+import java_cup.runtime.*;
+
+
+/**//* 嵌入代码和scanner的注入  */
+parser code{:
+    public int i = 0;
+    public int errors = 0;
+    public int lineNumber(){
+        i++;
+        return i;
+    }
+    public void countError(){
+        errors++;
+    }
+             :}
+init with {: lexer.init();              :};
+scan with {: return getScanner().next_token(); :};
+
+/**//* 终结符号 (tokens returned by the scanner). */
+terminal           SEMI, PLUS, MINUS, TIMES, DIVIDE;
+terminal           REVERSE, LPAREN, RPAREN;
+terminal String   NUMBER;
+
+/**//* 非终结符号 */
+non terminal            expr_list, expr_part;
+non terminal String    expr;
+
+/**//* 优先级设置 */
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
+precedence left REVERSE;
+
+/**//* 文法 */
+expr_list ::= expr_list expr_part 
+          | 
+              expr_part;
+
+expr_part ::= expr:e 
+          {: 
+            System.out.print("第"+lineNumber()+"个输入的");
+            System.out.println("转化结果为 " + e);
+             :} 
+              SEMI
+            |
+            error:e SEMI:s {: parser.report_error("第"+lineNumber() +" 个输入有语法错误"+'\n',e); 
+                            countError();
+                            :}              
+          ;
+
+expr      ::= expr:e1 PLUS expr:e2    
+          {: RESULT = e1+" "+e2+" "+"+"; :} 
+          | 
+              expr:e1 MINUS expr:e2    
+              {: RESULT =  e1+" "+e2+" "+"-"; :} 
+          | 
+              expr:e1 TIMES expr:e2 
+          {: RESULT =  e1+" "+e2+" "+"*"; :} 
+          | 
+              expr:e1 DIVIDE expr:e2 
+          {: RESULT = e1+" "+e2+" "+"/";:} 
+          
+          | 
+              NUMBER:n                 
+          {: RESULT = n; :} 
+          | 
+              REVERSE expr:e             
+          {: RESULT = e+" "+"!"; :} 
+          
+          | 
+              LPAREN expr:e RPAREN     
+          {: RESULT = e; :} 
+          ;
+
+

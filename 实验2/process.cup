@@ -1,0 +1,848 @@
+//process.cup
+import java_cup.runtime.*;
+import java.util.Random;
+import java.util.*;
+import java.io.*;
+
+/**//* 嵌入代码和scanner的注入  */
+parser code{:
+        public class Expr{
+                Node node;
+                String context;
+                public Expr(Node node,String context){
+                       this.node = node;
+                       this.context = context;
+               }
+        }
+        public static String name="";
+        public static Node treeroot;
+        public static void WTF(String context){
+               try{
+                     OutputStream f = new FileOutputStream(name+".java");
+                     String fileTemplate = "import java.io.*;\nimport java.util.Random;\npublic class " +name+"{\npublic static int selfRandom(int i){\nRandom rand=new Random();\nint result=(int)(Math.random()*(i+1));\nreturn result;\n}\n"+context+"\n}";            
+                     //String file = fileTemplate.format(name,context);
+                     f .write(fileTemplate.getBytes());
+               }catch(Exception e){}
+
+        }
+:}
+init with {: lexer.init();              :};
+scan with {: return getScanner().next_token(); :};
+
+/**//* 终结符号 (tokens returned by the scanner). */
+terminal           IF, ELSE, WHILE,RETURN,RANDOM,VAR,MAIN,PRINT;
+terminal           RELOP1, RELOP2, RELOP3, RELOP4, RELOP5, RELOP6, RELOP7, RELOP8;
+terminal           SEMI, DOT, PLUS, MINUS, TIMES, DIVIDE;
+terminal           LPAREN, RPAREN, LB, RB, LC, RC;
+terminal Integer   NUMBER;
+terminal String   ID;
+
+/**//* 非终结符号 */
+non terminal            program;
+non terminal Expr    stmt_seq, stmt, stmt1, other_stmt, while_stmt, c_stmt, return_stmt, assign_stmt,exp,exp_part,params,param;
+
+/**//* 优先级设置 */
+precedence right RELOP8;
+precedence left RELOP7;
+precedence left RELOP6, RELOP5;
+precedence left RELOP1, RELOP2, RELOP3, RELOP4; 
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
+
+
+/**//* 文法 */
+program ::= stmt_seq:s{:
+                //RESULT = s;
+              Node node = new Node("program");
+              node.add(s.node);
+              treeroot = node;
+                System.out.println(s.context);
+                //WTF(s);
+        :}
+          ;
+
+stmt_seq ::= stmt_seq:s1 stmt:s2{:
+              String context = s1.context+s2.context;
+              Node node = new Node("stmt_seq");
+              node.add(s1.node);
+              node.add(s2.node);
+              RESULT = new Expr(node,context);
+        :}
+        |
+        stmt:s{:
+              String context = s.context;
+              Node node = new Node("stmt_seq");
+              node.add(s.node);
+              Expr result = new Expr(node,context);
+              RESULT = result;
+        :}       
+        ;
+
+stmt ::= IF LPAREN exp:e RPAREN stmt1:s1 ELSE stmt:s2{:
+              String context = "if"+"("+e.context+")"+"\n"+s1.context+"else"+" "+s2.context;
+              Node nodeif = new Node("if");
+              Node nodelp = new Node("lp");
+              Node noderp = new Node("rp");
+              Node nodeelse = new Node("else");
+              Node node = new Node("stmt");
+              node.add(nodeif);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(s1.node);
+              node.add(nodeelse);
+              node.add(s2.node);
+              RESULT = new Expr(node,context);
+        :}
+      
+        |
+         IF LPAREN exp:e RPAREN stmt:s {:
+              String context = "if"+"("+e.context+")"+"\n"+s.context;
+              Node nodeif = new Node("if");
+              Node nodelp = new Node("lp");
+              Node noderp = new Node("rp");
+              Node node = new Node("stmt");
+              node.add(nodeif);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(s.node);
+              RESULT = new Expr(node,context);
+         :}
+        
+        |
+         WHILE LPAREN exp:e RPAREN stmt:s {:
+              String context = "while"+"("+e.context+")"+" "+s.context;
+              Node nodewhile = new Node("while");
+              Node nodelp = new Node("lp");
+              Node noderp = new Node("rp");
+              Node node = new Node("stmt");
+              node.add(nodewhile);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(s.node);
+              RESULT = new Expr(node,context);
+         :}
+
+        |
+         ID:id RELOP8 exp:e SEMI {:
+              String context = id+"="+e.context+";"+"\n";
+              Node nodeid = new Node(id);
+              Node noderelop8 = new Node("=");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(noderelop8);
+              node.add(e.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+        ID:id LB exp:e1 RB RELOP8 exp:e2 SEMI{:
+              String context = id+"["+e1.context+"]"+"="+e2.context+";"+"\n"; 
+              Node nodeid = new Node(id);
+              Node nodelb = new Node("[");
+              Node noderb = new Node("]");
+              Node noderelop8 = new Node("=");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelb);
+              node.add(noderb);
+              node.add(e1.node);
+              node.add(noderelop8);
+              node.add(e2.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);                  
+        :}
+        |
+         ID:id RELOP8 stmt:s {:
+              String context = id + "=" +s.context;
+              Node nodeid = new Node(id);
+              Node noderelop8 = new Node("=");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(noderelop8);
+              node.add(s.node);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         RETURN SEMI {:
+              String context = "return"+";"+"\n";
+              Node nodereturn = new Node("return");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodereturn);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         RETURN exp:e SEMI {:
+              String context = "return"+" "+e.context+";"+"\n";
+              Node nodereturn = new Node("return");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodereturn);
+              node.add(e.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         LC stmt_seq:s RC {:
+              String context = "{"+"\n"+s.context+"}"+"\n";
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt");
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN RPAREN SEMI {:
+              String context = id+"()"+";"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN params:p RPAREN SEMI{:
+              String context = id+"("+p.context+")"+";"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(p.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"()"+"{"+"\n"+s+"}"+"\n";
+              String context = "public static int "+id+"()"+"{"+"\n"+s.context+"}"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";"+"\n";
+                String context = "int "+id+";"+"\n";
+                Node nodevar = new Node("var");
+                Node nodeid = new Node(id);
+                Node nodesemi = new Node(";");
+                Node node = new Node("stmt");
+                node.add(nodevar);
+                node.add(nodeid);
+                node.add(nodesemi);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+        VAR ID:id LB exp:e RB SEMI{:
+                //RESULT = "var"+" "+id+"["+e+"]"+";"+"\n";
+              String context = " int [] "+id+"= new int "+"["+e.context+"]"+";"+"\n";
+               Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+        :}
+        |
+         ID:id LPAREN params:p RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+              String context = "public static int "+id+"("+p.context+")"+"{"+"\n"+s.context+"}"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(p.node);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+        MAIN LPAREN RPAREN LC stmt_seq:s RC{:
+                 //RESULT = "main"+"()"+"{"+"\n"+s+"}";
+              String context = "public static void main(String []args)"+"{"+"\n"+s.context+"}";
+              Node nodemain = new Node("main");
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt");
+              node.add(nodemain);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         PRINT LPAREN exp:e RPAREN SEMI{:
+              String context = "System.out.println"+"("+e.context+")"+";"+"\n";
+              Node nodeprint = new Node("print");
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt");
+              node.add(nodeprint);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+     
+        ;
+
+stmt1 ::= IF LPAREN exp:e RPAREN stmt1:s1 ELSE stmt1:s2{:
+              String context = "if"+"("+e.context+")"+"\n"+s1.context+"else"+" "+s2.context;
+              Node nodeif = new Node("if");
+              Node nodelp = new Node("lp");
+              Node noderp = new Node("rp");
+              Node nodeelse = new Node("else");
+              Node node = new Node("stmt1");
+              node.add(nodeif);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(s1.node);
+              node.add(nodeelse);
+              node.add(s2.node);
+              RESULT = new Expr(node,context);
+        :}
+        |
+        WHILE LPAREN exp:e RPAREN stmt1:s {:
+              String context = "while"+"("+e.context+")"+" "+s.context;
+              Node nodewhile = new Node("while");
+              Node nodelp = new Node("lp");
+              Node noderp = new Node("rp");
+              Node node = new Node("stmt1");
+              node.add(nodewhile);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(s.node);
+              RESULT = new Expr(node,context);
+         :}
+
+         
+        |
+          ID:id RELOP8 exp:e SEMI {:
+              String context = id+"="+e.context+";"+"\n";
+              Node nodeid = new Node(id);
+              Node noderelop8 = new Node("=");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(noderelop8);
+              node.add(e.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LB exp:e1 RB RELOP8 exp:e2 SEMI{:
+              String context = id+"["+e1.context+"]"+"="+e2.context+";"+"\n"; 
+              Node nodeid = new Node(id);
+              Node nodelb = new Node("[");
+              Node noderb = new Node("]");
+              Node noderelop8 = new Node("=");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelb);
+              node.add(noderb);
+              node.add(e1.node);
+              node.add(noderelop8);
+              node.add(e2.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);                    
+         :}
+        |
+         ID:id RELOP8 stmt1:s {:
+         String context = id + "=" +s.context;
+              Node nodeid = new Node(id);
+              Node noderelop8 = new Node("=");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(noderelop8);
+              node.add(s.node);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         RETURN SEMI {:
+              String context = "return"+";"+"\n";
+              Node nodereturn = new Node("return");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodereturn);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+          RETURN exp:e SEMI {:
+              String context = "return"+" "+e.context+";"+"\n";
+              Node nodereturn = new Node("return");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodereturn);
+              node.add(e.node);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+       
+        |
+         LC stmt_seq:s RC{:
+              String context = "{"+"\n"+s.context+"}"+"\n";
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt1");
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN RPAREN SEMI{:
+              String context = id+"()"+";"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN params:p RPAREN SEMI{:
+              String context = id+"("+p.context+")"+";"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(p.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN RPAREN LC stmt_seq:s RC{:
+                //RESULT =id+"()"+"{"+"\n"+s+"}"+"\n";
+              String context = "public static int "+id+"()"+"{"+"\n"+s.context+"}"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LPAREN params:p RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+              String context = "public static int "+id+"("+p.context+")"+"{"+"\n"+s.context+"}"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(p.node);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :} 
+         |
+         VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";"+"\n";
+                String context = "int "+id+";"+"\n";
+                Node nodevar = new Node("var");
+                Node nodeid = new Node(id);
+                Node nodesemi = new Node(";");
+                Node node = new Node("stmt1");
+                node.add(nodevar);
+                node.add(nodeid);
+                node.add(nodesemi);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         VAR ID:id LB exp:e RB SEMI{:
+                //RESULT = "var"+" "+id+"["+e+"]"+";"+"\n";
+              String context = " int [] "+id+"= new int "+"["+e.context+"]"+";"+"\n";
+              Node nodeid = new Node(id);
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeid);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+        MAIN LPAREN RPAREN LC stmt_seq:s RC{:
+                 //RESULT = "main"+"()"+"{"+"\n"+s+"}";
+              String context = "public static void main(String []args)"+"{"+"\n"+s.context+"}";
+              Node nodemain = new Node("main");
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodelc = new Node("{");
+              Node noderc = new Node("}");
+              Node node = new Node("stmt1");
+              node.add(nodemain);
+              node.add(nodelp);
+              node.add(noderp);
+              node.add(nodelc);
+              node.add(s.node);
+              node.add(noderc);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         PRINT LPAREN exp:e RPAREN SEMI{:
+         String context = "System.out.println"+"("+e.context+")"+";"+"\n";
+              Node nodeprint = new Node("print");
+              Node nodelp = new Node("(");
+              Node noderp = new Node(")");
+              Node nodesemi = new Node(";");
+              Node node = new Node("stmt1");
+              node.add(nodeprint);
+              node.add(nodelp);
+              node.add(e.node);
+              node.add(noderp);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+     
+
+        ;
+
+params ::= params:p1 param:p2{:
+              String context = p1.context+","+p2.context;
+              Node node = new Node("params");
+              node.add(p1.node);
+              node.add(p2.node);
+              RESULT = new Expr(node,context);
+        :}
+        | 
+         param:p{:
+                String context = p.context;
+                Node node = new Node("params");
+                node.add(p.node);
+                RESULT = new Expr(node,context);
+
+         :}
+         ;
+param ::= VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";";
+                String context = "int "+id;
+                Node nodevar = new Node("var");
+                Node nodeid = new Node(id);
+                Node nodesemi = new Node(";");
+                Node node = new Node("param");
+                node.add(nodevar);
+                node.add(nodeid);
+                node.add(nodesemi);
+                RESULT = new Expr(node,context);
+
+        :}
+        |
+         VAR ID:id LB RB SEMI{:
+                //RESULT = "var"+" "+id+"[]"+";";
+              String context = "int "+"[] "+id;
+              Node nodevar = new Node("var");
+              Node nodeid = new Node(id);
+              Node nodelb = new Node("[");
+              Node noderb = new Node("]");
+              Node nodesemi = new Node(";");
+              Node node = new Node("param");
+              node.add(nodevar);
+              node.add(nodeid);
+              node.add(nodelb);
+              node.add(noderb);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id SEMI{:
+              String context = id;
+              Node nodeid = new Node(id);
+              Node nodesemi = new Node(";");
+              Node node = new Node("param");
+              node.add(nodeid);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         ID:id LB RB SEMI{:
+              String context = id;
+              Node nodeid = new Node(id);
+              Node nodelb = new Node("[");
+              Node noderb = new Node("]");
+              Node nodesemi = new Node(";");
+              Node node = new Node("param");
+              node.add(nodeid);
+              node.add(nodelb);
+              node.add(noderb);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context);
+         :}
+        |
+         NUMBER:n SEMI{:
+              String context = Integer.toString(n.intValue());
+              Node nodenum = new Node(context);
+              Node nodesemi = new Node(";");
+              Node node = new Node("param");
+              node.add(nodenum);
+              node.add(nodesemi);
+              RESULT = new Expr(node,context); 
+        :}
+         ;
+
+// e<e
+exp ::= exp:e1 RELOP1 exp:e2 {:
+                String context = e1.context+"<"+e2.context;
+                Node noderelop1 = new Node("<");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop1);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+      
+        |
+         exp:e1 RELOP2 exp:e2 {:
+                String context = e1.context+"<="+e2.context;
+                Node noderelop2 = new Node("<=");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop2);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+  
+        |
+         exp:e1 RELOP3 exp:e2 {:
+                String context = e1.context+">"+e2.context;
+                Node noderelop3 = new Node(">");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop3);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :} 
+    
+        |
+         exp:e1 RELOP4 exp:e2 {:
+                String context = e1.context+">="+e2.context;
+                Node noderelop4 = new Node(">=");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop4);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :} 
+ 
+        |
+         exp:e1 RELOP5 exp:e2 {:
+                //e==e
+                String context = e1.context+"=="+e2.context;
+                Node noderelop5 = new Node("==");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop5);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+ 
+        |
+         exp:e1 RELOP6 exp:e2  {:
+                //e!=e
+                String context = e1.context+"!="+e2.context;
+                Node noderelop6 = new Node("!=");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop6);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+  
+        |
+         exp:e1 RELOP7 exp:e2 {:
+                //e&&e
+                String context = e1.context+"&&"+e2.context;
+                Node noderelop7 = new Node("&&");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(noderelop7);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+   
+        |
+         exp:e1 PLUS exp:e2 {:
+                String context = e1.context+"+"+e2.context;
+                Node nodeplus = new Node("+");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(nodeplus);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         exp:e1 MINUS exp:e2 {:
+                String context = e1.context+"-"+e2.context;
+                Node nodeminus = new Node("-");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(nodeminus);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         exp:e1 TIMES exp:e2 {:
+                String context = e1.context+"*"+e2.context;
+                Node nodetimes = new Node("*");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(nodetimes);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+        | 
+         exp:e1 DIVIDE exp:e2 {:
+                String context = e1.context+"/"+e2.context;
+                Node nodedivide = new Node("/");
+                Node node = new Node("exp");
+                node.add(e1.node);
+                node.add(nodedivide);
+                node.add(e2.node);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         NUMBER:n{:
+                String context = Integer.toString(n.intValue());
+                Node nodenum = new Node(context);
+                Node node = new Node("exp");
+                node.add(nodenum);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         ID:id {:
+                String context = id;
+                Node nodeid = new Node(context);
+                Node node = new Node("exp");
+                node.add(nodeid);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         ID:id LB exp:e RB {:
+                String context = id+"["+e.context+"]";
+                Node nodeid = new Node(id);
+                Node nodelb = new Node("[");
+                Node noderb = new Node("]");
+                Node node = new Node("exp");
+                node.add(nodeid);
+                node.add(nodelb);
+                node.add(e.node);
+                node.add(noderb);
+                RESULT = new Expr(node,context);
+
+         :}
+        |
+         RANDOM LPAREN exp:e RPAREN {:
+                String context = "selfRandom"+"("+e.context+")";
+                Node noderandom = new Node("RANDOM");
+                Node nodelp = new Node("(");
+                Node noderp = new Node(")");
+                Node node = new Node("exp");
+                node.add(noderandom);
+                node.add(nodelp);
+                node.add(e.node);
+                node.add(noderp);
+                RESULT = new Expr(node,context);
+ 
+         :}
+ 
+        |
+         LPAREN exp:e RPAREN {:
+                String context = "("+e.context+")";
+                Node nodelp = new Node("(");
+                Node noderp = new Node(")");
+                Node node = new Node("exp");
+                node.add(nodelp);
+                node.add(e.node);
+                node.add(noderp);
+                RESULT = new Expr(node,context);
+ 
+         :}
+     
+        ;
+

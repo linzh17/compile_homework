@@ -1,0 +1,448 @@
+//process.cup
+import java_cup.runtime.*;
+import flowchart.*;
+
+/**//* 嵌入代码和scanner的注入  */
+parser code{:
+        public int i = 0;
+        public flowchart.Module testModule = null;              // instance of a module
+        public Procedure proc = null;                 // instance of a procedure
+	public WhileStatement whileStmt = null;       // instance of a WHILE statement
+        public WhileStatement tempwhile = null; 
+	public IfStatement ifStmt = null;             // instance of a IF statement
+        public IfStatement tempif = null; 
+	public StatementSequence loopBody = null;     // instance of a loop body
+        public int flag = 0;
+        public int tempflag = 0;
+        public int ifstatue = 0;
+        public int tempifstatue =0;
+        public int idnex = 0;
+        public int [] a = new int [999];
+        a[index] = 0;
+             :}
+init with {: lexer.init();            :};
+scan with {: return getScanner().next_token(); :};
+
+/**//* 终结符号 (tokens returned by the scanner). */
+terminal           PLUS, MINUS, TIMES, DIVIDE, MOD, RELOP8;
+terminal           RELOP1, RELOP2, RELOP3, RELOP4, RELOP5, RELOP7, OR, REVERSE,POUND;
+terminal           INTEGER, BOOLEAN, WRITE, READ, Writeln, RECORD, ARRAY, MODULE, CONST, TYPE, VAR, PROCEDURE;
+terminal           IF, THEN, ELSIF, ELSE, WHILE, DO, BEGIN, END, OF;
+terminal           COMMENT,TRUE,FLASE;
+terminal           LPAREN, RPAREN, LB, RB, SEMI, COLON, COMMA, DOT;
+terminal Integer   NUMBER;
+terminal String   IDENTIFIER;
+
+/**//* 非终结符号 */
+non terminal            program;
+non terminal            module_block, module_main,module_block_head;
+non terminal            declarations, const_declaration, type_declaration,var_declaration, procedure_declaration;
+non terminal            procedure_body, procedure_heading;
+non terminal String     formal_parameters,fp_section,var_if;           
+non terminal String     type,record_type,array_type,field_list,field_part;
+non terminal            statement_sequence,statement,if_statement,else_statement,elsif_statement,while_statement,assignment,rw_statement,  procedure_call;
+non terminal            if_head,while_head,else_head;
+non terminal String     actual_parameters,ap_list;
+non terminal String     selector;
+non terminal String     const_list, type_list, var_list, identifier_list;
+non terminal String     expression;
+
+/**//* 优先级设置 */
+precedence right RELOP8;
+precedence left OR;
+precedence left RELOP7;
+precedence right REVERSE;
+precedence left RELOP1,RELOP2,RELOP3,RELOP4,RELOP5,POUND;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE, MOD;
+precedence left LPAREN;
+
+
+
+/**//* 文法 */
+
+program ::= module_block{:
+        
+                System.out.println("model_block");
+        :}
+        ;
+
+module_block ::= module_block_head SEMI declarations module_main END IDENTIFIER:id2 DOT{:
+
+               
+        :}
+        ;
+module_block_head ::= MODULE IDENTIFIER:id{:
+                testModule = new flowchart.Module(id);
+                System.out.println("model block "+id);
+        :}
+        ;
+module_main ::= BEGIN statement_sequence{:
+                System.out.println("model main");
+        :}
+        |
+        ;
+
+declarations ::= const_declaration type_declaration var_declaration procedure_declaration{:
+                System.out.println("declarations ");
+        :}
+        ;
+
+const_declaration ::= CONST const_list:cl{:
+                System.out.println("const");
+                proc.add(new PrimitiveStatement("CONST "+cl));
+        :}
+        |{:
+                System.out.println("const empty");
+        :}
+        ;
+const_list ::= const_list:cl IDENTIFIER:id RELOP8 expression:e SEMI{:
+                RESULT = cl+id+" = "+e+";";
+        :}
+        |{:
+                RESULT = "";
+        :}
+        ;
+type_declaration ::= TYPE type_list:tl{:
+                System.out.println("type empty");
+                proc.add(new PrimitiveStatement("TYPE "+tl));
+        :}
+        |
+        ;
+type_list ::= type_list:tl IDENTIFIER:id RELOP8 type:t SEMI{:
+                 RESULT = tl+id+" = "+t+";";
+        :}
+        |{:
+                RESULT = "";
+        :}
+        ;
+var_declaration ::= VAR var_list:vl{:
+                System.out.println("var declaration");
+                proc.add(new PrimitiveStatement("VAR "+vl));
+        :}
+        |
+        ;
+var_list ::= var_list:vl identifier_list:idl COLON type:t SEMI{:
+                RESULT = vl+idl+" : "+t+";";
+        :}
+        |{:
+                RESULT = "";
+        :}
+        ;
+
+procedure_declaration ::=procedure_declaration procedure_heading SEMI procedure_body SEMI{:
+                System.out.println("procedure declaration");
+        :}
+        |
+        ;
+procedure_body ::= declarations BEGIN statement_sequence END IDENTIFIER{:
+                System.out.println("pbbe");
+        :}
+        |
+         declarations END IDENTIFIER{:
+                System.out.println("pe");
+         :}
+        ;
+
+procedure_heading ::= PROCEDURE IDENTIFIER:id{:
+                
+                proc = testModule.add(id);
+                
+                System.out.println(id);
+        :}
+        |
+         PROCEDURE IDENTIFIER:id formal_parameters:fp{:
+                proc = testModule.add(id);
+                proc.add(new PrimitiveStatement("传入参数 "+fp));      
+                System.out.println("phf");
+        :}
+        ;
+
+formal_parameters ::= LPAREN RPAREN{:
+                RESULT = "空";
+        :}
+        |
+         LPAREN fp_section:fs RPAREN{:
+                RESULT = fs;
+         :}
+        ;
+
+fp_section ::=	fp_section:fs SEMI var_if:vi identifier_list:idl COLON type:t{:
+                RESULT = fs + " ; "+vi+" "+idl+" , "+t;
+        :}	
+	| 
+        var_if:vi identifier_list:idl COLON type:t{:
+                RESULT = vi+" "+idl+" , "+t;
+        :}
+        ;
+		
+var_if ::= VAR{:
+                RESULT = "VAR";
+        :}
+        |{:
+                RESULT = "";
+        :}
+        ;
+
+
+identifier_list ::= IDENTIFIER:id{:
+                RESULT = id;
+        :}
+        |
+         identifier_list:idl COMMA IDENTIFIER:id{:
+                RESULT = idl+" , "+id;
+         :}
+        ;
+
+type ::= IDENTIFIER:id{:
+                RESULT = id;
+        :}
+        |
+         array_type:at{:
+                RESULT = at;
+         :}
+        |
+         INTEGER{:
+                RESULT = "INTEGER";
+        :}
+        |
+         BOOLEAN{:
+                RESULT = "BOOLEAN";
+        :}
+        |
+         record_type:rt{:
+                RESULT = rt;
+         :}
+         ;
+
+record_type ::= RECORD  field_list:fl END{:
+                RESULT = "RECORD\n "+fl+"\nEND ";
+        :}
+        ;
+field_list ::=field_list:fl SEMI field_part:fp{:
+                RESULT = fl+" ; "+fp;
+        :}
+        |
+         field_part:fp{:
+                RESULT = fp;
+         :}
+        ;
+field_part ::= identifier_list:idl COLON type:t{:
+                RESULT = idl + " : "+t;
+        :}
+        |
+        ;
+
+
+array_type ::= ARRAY expression:e OF type:t{:
+                RESULT = "ARRAY "+e+" OF "+t;
+        :}
+        ;
+
+statement_sequence ::= statement 
+        |
+         statement_sequence SEMI statement
+        ;
+
+statement ::= assignment
+        |
+         procedure_call
+        |
+         if_statement
+        |
+         while_statement
+        |
+         rw_statement
+        |
+        ;
+rw_statement ::= READ LPAREN IDENTIFIER:id RPAREN{:
+                System.out.println(flag);
+                if (flag == 0) proc.add(new PrimitiveStatement("Read ("+id+")"));
+                else if(flag == 1) whileStmt.getLoopBody().add(new PrimitiveStatement("Read ("+id+")"));
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(new PrimitiveStatement("Read ("+id+")"));
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(new PrimitiveStatement("Read ("+id+")"));
+        :}
+        |
+         WRITE LPAREN IDENTIFIER:id RPAREN{:
+                System.out.println(flag);
+                if (flag == 0) proc.add(new PrimitiveStatement("Write ("+id+")"));
+                else if(flag == 1) whileStmt.getLoopBody().add(new PrimitiveStatement("Write ("+id+")"));
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(new PrimitiveStatement("Write ("+id+")"));
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(new PrimitiveStatement("Write ("+id+")"));
+         :}
+        |
+         Writeln{:
+                System.out.println(flag);
+                if (flag == 0) proc.add(new PrimitiveStatement("Writeln"));
+                else if(flag == 1) whileStmt.getLoopBody().add(new PrimitiveStatement("Writeln"));
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(new PrimitiveStatement("Writeln"));
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(new PrimitiveStatement("Writeln"));
+         :}
+        ;
+
+while_statement ::= while_head DO statement_sequence END{:
+                System.out.println("while end");
+                System.out.println(tempflag);
+
+                whileStmt = tempwhile;
+                flag = tempflag;
+        :}
+        ;
+while_head ::= WHILE expression:e {:
+                System.out.println("while");
+                System.out.println(flag);
+                tempwhile = whileStmt;
+                tempflag = flag;
+                whileStmt = new WhileStatement(e);
+                if (flag == 0) proc.add(whileStmt);
+                else if(flag == 1) tempwhile.getLoopBody().add(whileStmt);
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(whileStmt);
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(whileStmt);
+                flag = 1;
+        :};
+if_statement ::= if_head THEN statement_sequence elsif_statement else_statement END{:
+                System.out.println(flag);
+                ifStmt = tempif;
+                flag = tempflag;
+                System.out.println(flag);
+                ifstatue = tempifstatue;
+        :}
+        ;
+
+if_head ::= IF expression:e{:
+                System.out.println("if");
+                tempif = ifStmt;
+                tempflag = flag;
+                tempifstatue = ifstatue;
+                ifStmt = new IfStatement(e);
+                if(flag == 0) proc.add(ifStmt);
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(ifStmt);
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(ifStmt);
+                flag = 2;
+                ifstatue = 1;
+        :};
+
+elsif_statement ::= elsif_statement ELSIF expression THEN statement_sequence
+        |
+        ;
+
+else_statement ::=else_head statement_sequence
+        |
+        ;
+else_head ::= ELSE {:
+                ifstatue = 0;
+        :}; 
+
+procedure_call ::= IDENTIFIER:id actual_parameters:ap{:
+                if (flag == 0) proc.add(new PrimitiveStatement(id+" "+ap));
+                else if(flag == 1) whileStmt.getLoopBody().add(new PrimitiveStatement(id+" "+ap));
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(new PrimitiveStatement(id+" "+ap));
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(new PrimitiveStatement(id+" "+ap));
+        :}
+        ;
+actual_parameters::={:RESULT = "";:}
+	| 
+         LPAREN ap_list:al RPAREN{:
+                RESULT = "("+al+")";
+         :}
+        ;
+ap_list ::= ap_list:al COMMA expression:e{:
+                RESULT = al+" , "+e;
+        :}
+	| 
+         expression:e{:
+                RESULT = e;
+         :}
+	|
+        {:
+                RESULT = "";
+        :} 
+        ;
+assignment ::= IDENTIFIER:id selector:s RELOP8 expression:e{:
+               if (flag == 0) proc.add(new PrimitiveStatement(id+s+" := "+e));
+                else if(flag == 1) whileStmt.getLoopBody().add(new PrimitiveStatement(id+s+" := "+e));
+                else if(flag == 2 && ifstatue == 0) ifStmt.getFalseBody().add(new PrimitiveStatement(id+s+" := "+e));
+                else if(flag == 2 && ifstatue == 1) ifStmt.getTrueBody().add(new PrimitiveStatement(id+s+" := "+e));
+        :}
+        ;
+
+selector ::= selector:s DOT IDENTIFIER:id{:
+                RESULT = s+"."+id;
+        :}
+        |
+         selector:s LB expression:e RB{:
+                RESULT = s+"["+e+"]";
+         :}
+        |
+        {:      RESULT = "";:}
+        ;
+
+expression ::= expression:e1 RELOP1 expression:e2 {:
+                RESULT = e1+" < "+e2; 
+        :}
+        |
+         expression:e1 RELOP2 expression:e2{:
+                RESULT = e1 + " <= " + e2;
+         :} 
+        |
+         expression:e1 RELOP3 expression:e2{:
+                RESULT = e1 + " > " + e2;
+         :} 
+        |
+         expression:e1 RELOP4 expression:e2{:
+                RESULT = e1 + " >= " + e2;
+         :}  
+ 
+        |
+         expression:e1 RELOP5 expression:e2 {:
+                RESULT = e1 + " = " + e2;
+         :} 
+        |
+         expression:e1 POUND expression:e2 {:
+                RESULT = e1 + " #" + e2;
+         :} 
+        |
+         expression:e1 PLUS expression:e2 {:
+                RESULT = e1 + " + " + e2;
+         :} 
+        |
+         expression:e1 MINUS expression:e2{:
+                RESULT = e1 + " - " + e2;
+         :}  
+        |
+         expression:e1 TIMES expression:e2 {:
+                RESULT = e1 + " * " + e2;
+         :}  
+        | 
+         expression:e1 DIVIDE expression:e2{:
+                RESULT = e1 + " / " + e2;
+         :}   
+        |
+         expression:e1 MOD expression:e2{:
+                RESULT = e1 + " % " + e2;
+         :}  
+        |
+         expression:e1 RELOP7 expression:e2{:
+                RESULT = e1 + " & " + e2;
+         :}  
+        |
+         expression:e1 OR expression:e2{:
+                RESULT = e1 + " OR " + e2;
+         :}  
+        |
+         REVERSE expression:e{:
+                RESULT = "~ "+e;
+         :}  
+        |
+         NUMBER:n
+        |
+         IDENTIFIER:id selector:s{:
+                RESULT = id+s;
+         :}  
+        |
+         LPAREN expression:e RPAREN {:
+                RESULT ="( "+e+" )";
+         :}
+     
+        ;
+

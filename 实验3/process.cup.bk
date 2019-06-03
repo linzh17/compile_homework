@@ -1,0 +1,337 @@
+//process.cup
+import java_cup.runtime.*;
+import flowchart.*;
+
+/**//* 嵌入代码和scanner的注入  */
+parser code{:
+    public int i = 0;
+        public flowchart.Module testModule = null;              // instance of a module
+        public Procedure proc = null;                 // instance of a procedure
+	public WhileStatement whileStmt = null;       // instance of a WHILE statement
+        public WhileStatement tempwhile = null; 
+	public IfStatement ifStmt = null;             // instance of a IF statement
+	public StatementSequence loopBody = null;     // instance of a loop body
+        public int flag = 0;
+        public int tempflag = 0;
+        public int ifstatue = 0;
+        public int tempifstatue =0;
+   
+             :}
+init with {: lexer.init();              :};
+scan with {: return getScanner().next_token(); :};
+
+/**//* 终结符号 (tokens returned by the scanner). */
+terminal           PLUS, MINUS, TIMES, DIVIDE, MOD, RELOP8;
+terminal           RELOP1, RELOP2, RELOP3, RELOP4, RELOP5, RELOP7, OR, REVERSE,POUND;
+terminal           INTEGER, BOOLEAN, WRITE, READ, Writeln, RECORD, ARRAY, MODULE, CONST, TYPE, VAR, PROCEDURE;
+terminal           IF, THEN, ELSIF, ELSE, WHILE, DO, BEGIN, END, OF;
+terminal           COMMENT,TRUE,FLASE;
+terminal           LPAREN, RPAREN, LB, RB, SEMI, COLON, COMMA, DOT;
+terminal Integer   NUMBER;
+terminal String   IDENTIFIER;
+
+/**//* 非终结符号 */
+non terminal            program;
+non terminal            module_block, module_main,module_block_head;
+non terminal            declarations, const_declaration, type_declaration,var_declaration, procedure_declaration;
+non terminal             procedure_body, procedure_heading;
+non terminal            formal_parameters,fp_section,var_if;
+non terminal            identifier_list;
+non terminal            if_head,while_head,else_head;
+non terminal            type,record_type,array_type,field_list,field_part;
+non terminal            statement_sequence,statement,if_statement,else_statement,elsif_statement,while_statement,assignment,rw_statement;
+non terminal            procedure_call,actual_parameters,ap_list;
+non terminal String           const_list, type_list, var_list;
+non terminal String    selector;
+non terminal String    expression;
+
+/**//* 优先级设置 */
+precedence right RELOP8;
+precedence left OR;
+precedence left RELOP7;
+precedence right REVERSE;
+precedence left RELOP1,RELOP2,RELOP3,RELOP4,RELOP5,POUND;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE, MOD;
+precedence left LPAREN;
+
+
+
+/**//* 文法 */
+
+program ::= module_block{:
+        
+                System.out.println("model_block");
+        :}
+        ;
+
+module_block ::= module_block_head SEMI declarations module_main END IDENTIFIER:id2 DOT{:
+
+               
+        :}
+        ;
+module_block_head ::= MODULE IDENTIFIER:id{:
+                testModule = new flowchart.Module(id);
+                System.out.println("model block "+id);
+        :}
+        ;
+
+module_main ::= BEGIN statement_sequence{:
+                System.out.println("model main");
+        :}
+        |
+        ;
+
+declarations ::= const_declaration type_declaration var_declaration procedure_declaration{:
+                System.out.println("declarations ");
+        :}
+        ;
+
+const_declaration ::= CONST const_list:cl{:
+                System.out.println("const");
+                proc.add(new PrimitiveStatement("CONST "+cl));
+        :}
+        |{:
+                System.out.println("const empty");
+        :}
+        ;
+const_list ::= const_list:cl IDENTIFIER:id RELOP8 expression:e SEMI{:
+                 RESULT = cl+id+" = "+e+";";
+        :}
+        |
+        {:
+                RESULT = "";
+        :}
+        ;
+type_declaration ::= TYPE type_list{:
+
+        :}
+        |{:
+                System.out.println("type empty");
+        :}
+        ;
+type_list ::= type_list IDENTIFIER RELOP8 type SEMI
+        |
+        ;
+var_declaration ::= VAR var_list{:
+                System.out.println("var declaration");
+        :}
+        |
+        ;
+var_list ::= var_list identifier_list COLON type SEMI
+        |
+        ;
+
+procedure_declaration ::=procedure_declaration procedure_heading SEMI procedure_body SEMI{:
+                System.out.println("procedure declaration");
+        :}
+        |
+        ;
+procedure_body ::= declarations BEGIN statement_sequence END IDENTIFIER{:
+                System.out.println("pbbe");
+        :}
+        |
+         declarations END IDENTIFIER{:
+                System.out.println("pe");
+         :}
+        ;
+
+procedure_heading ::= PROCEDURE IDENTIFIER{:
+                System.out.println("ph");
+        :}
+        |
+         PROCEDURE IDENTIFIER formal_parameters{:
+                System.out.println("phf");
+        :}
+        ;
+
+formal_parameters ::= LPAREN RPAREN
+        |
+         LPAREN fp_section RPAREN
+        ;
+
+fp_section ::=	fp_section SEMI var_if identifier_list COLON type
+		
+		| var_if identifier_list COLON type
+                ;
+		
+var_if ::= VAR
+        |
+        ;
+
+
+identifier_list ::= IDENTIFIER
+        |
+         identifier_list COMMA IDENTIFIER
+        ;
+
+type ::= IDENTIFIER
+        |
+         array_type
+        |
+         INTEGER
+        |
+         BOOLEAN
+        |
+         record_type
+         ;
+
+record_type ::= RECORD  field_list END
+        ;
+field_list ::=field_list SEMI field_part
+        |
+         field_part
+        ;
+field_part ::= identifier_list COLON type
+        |
+        ;
+
+
+array_type ::= ARRAY expression OF type
+        ;
+
+statement_sequence ::= statement 
+        |
+         statement_sequence SEMI statement
+        ;
+
+statement ::= assignment
+        |
+         procedure_call
+        |
+         if_statement
+        |
+         while_statement
+        |
+         rw_statement
+        |
+        ;
+rw_statement ::= READ LPAREN IDENTIFIER RPAREN{:
+                System.out.println("READ");
+        :}
+        |
+         WRITE LPAREN IDENTIFIER RPAREN
+        |
+         Writeln
+        ;
+
+while_statement ::= while_head DO statement_sequence END
+        ;
+
+while_head ::= WHILE expression
+        ;
+
+if_statement ::= if_head THEN statement_sequence elsif_statement else_statement END
+        ;
+
+if_head ::= IF expression
+        ;
+
+elsif_statement ::= elsif_statement ELSIF expression THEN statement_sequence
+        |
+        ;
+
+else_statement ::= else_head statement_sequence
+        |
+        ;
+else_head ::= ELSE
+        ;
+
+procedure_call ::= IDENTIFIER actual_parameters{:
+                i = i+1;
+                System.out.println("pro call"+i);
+        :}
+        ;
+actual_parameters::=
+	| 
+         LPAREN ap_list RPAREN
+        ;
+ap_list ::= ap_list COMMA expression
+	| 
+         expression
+	| 
+        ;
+assignment ::= IDENTIFIER selector RELOP8 expression
+        ;
+
+selector ::= selector:s DOT IDENTIFIER:id{:
+                RESULT = s+"."+id;
+        :}
+        |
+         selector:s LB expression:e RB{:
+                RESULT = s+"["+e+"]";
+         :}
+        |
+        {:      RESULT = "";:}
+        ;
+
+
+expression ::= expression:e1 RELOP1 expression:e2 {:
+                RESULT = e1+" < "+e2; 
+        :}
+        |
+         expression:e1 RELOP2 expression:e2{:
+                RESULT = e1 + " <= " + e2;
+         :} 
+        |
+         expression:e1 RELOP3 expression:e2{:
+                RESULT = e1 + " > " + e2;
+         :} 
+        |
+         expression:e1 RELOP4 expression:e2{:
+                RESULT = e1 + " >= " + e2;
+         :}  
+ 
+        |
+         expression:e1 RELOP5 expression:e2 {:
+                RESULT = e1 + " = " + e2;
+         :} 
+        |
+         expression:e1 POUND expression:e2 {:
+                RESULT = e1 + " #" + e2;
+         :} 
+        |
+         expression:e1 PLUS expression:e2 {:
+                RESULT = e1 + " + " + e2;
+         :} 
+        |
+         expression:e1 MINUS expression:e2{:
+                RESULT = e1 + " - " + e2;
+         :}  
+        |
+         expression:e1 TIMES expression:e2 {:
+                RESULT = e1 + " * " + e2;
+         :}  
+        | 
+         expression:e1 DIVIDE expression:e2{:
+                RESULT = e1 + " / " + e2;
+         :}   
+        |
+         expression:e1 MOD expression:e2{:
+                RESULT = e1 + " % " + e2;
+         :}  
+        |
+         expression:e1 RELOP7 expression:e2{:
+                RESULT = e1 + " & " + e2;
+         :}  
+        |
+         expression:e1 OR expression:e2{:
+                RESULT = e1 + " OR " + e2;
+         :}  
+        |
+         REVERSE expression:e{:
+                RESULT = "~ "+e;
+         :}  
+        |
+         NUMBER:n
+        |
+         IDENTIFIER:id selector:s{:
+                RESULT = id+s;
+         :}  
+        |
+         LPAREN expression:e RPAREN {:
+                RESULT ="( "+e+" )";
+         :}
+     
+        ;
+

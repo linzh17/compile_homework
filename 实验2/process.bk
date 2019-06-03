@@ -1,0 +1,333 @@
+//process.cup
+import java_cup.runtime.*;
+import java.util.Random;
+import java.util.*;
+import java.io.*;
+
+/**//* 嵌入代码和scanner的注入  */
+parser code{:
+        public class EXPR{
+                Node node;
+                String context;
+                EXPR(Node node,String context){
+                       this.node = node;
+                       this.context = context;
+               }
+        }
+        public static String name="";
+        public static void WTF(String context){
+               try{
+                     OutputStream f = new FileOutputStream(name+".java");
+                     String fileTemplate = "import java.io.*;\nimport java.util.Random;\npublic class " +name+"{\npublic static int selfRandom(int i){\nRandom rand=new Random();\nint result=(int)(Math.random()*(i+1));\nreturn result;\n}\n"+context+"\n}";            
+                     //String file = fileTemplate.format(name,context);
+                     f .write(fileTemplate.getBytes());
+               }catch(Exception e){}
+
+        }
+:}
+init with {: lexer.init();              :};
+scan with {: return getScanner().next_token(); :};
+
+/**//* 终结符号 (tokens returned by the scanner). */
+terminal           IF, ELSE, WHILE,RETURN,RANDOM,VAR,MAIN,PRINT;
+terminal           RELOP1, RELOP2, RELOP3, RELOP4, RELOP5, RELOP6, RELOP7, RELOP8;
+terminal           SEMI, DOT, PLUS, MINUS, TIMES, DIVIDE;
+terminal           LPAREN, RPAREN, LB, RB, LC, RC;
+terminal Integer   NUMBER;
+terminal String   ID;
+
+/**//* 非终结符号 */
+non terminal            program;
+non terminal String    stmt_seq, stmt, stmt1, other_stmt, while_stmt, c_stmt, return_stmt, assign_stmt,exp,exp_part,params,param;
+
+/**//* 优先级设置 */
+precedence right RELOP8;
+precedence left RELOP7;
+precedence left RELOP6, RELOP5;
+precedence left RELOP1, RELOP2, RELOP3, RELOP4; 
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
+
+
+/**//* 文法 */
+program ::= stmt_seq:s{:
+                //RESULT = s;
+               
+                System.out.println(s);
+                WTF(s);
+        :}
+          ;
+
+stmt_seq ::= stmt_seq:s1 stmt:s2{:
+                RESULT = s1+s2;
+        :}
+        |
+        stmt:s{:
+                RESULT = s;
+        :}       
+        ;
+
+stmt ::= IF LPAREN exp:e RPAREN stmt1:s1 ELSE stmt:s2{:
+                RESULT = "if"+"("+e+")"+"\n"+s1+"else"+" "+s2;
+        :}
+      
+        |
+         IF LPAREN exp:e RPAREN stmt:s {:
+                RESULT = "if"+"("+e+")"+"\n"+s;
+         :}
+        
+        |
+         WHILE LPAREN exp:e RPAREN stmt:s {:
+                RESULT = "while"+"("+e+")"+" "+s;
+         :}
+
+        |
+         ID:id RELOP8 exp:e SEMI {:
+                RESULT = id+"="+e+";"+"\n";
+         :}
+        |
+        ID:id LB exp:e1 RB RELOP8 exp:e2 SEMI{:
+                RESULT = id+"["+e1+"]"+"="+e2+";"+"\n";                 
+        :}
+        |
+         ID:id RELOP8 stmt:s {:
+                RESULT = id +"=" + s ;
+         :}
+        |
+         RETURN SEMI {:
+                RESULT = "return"+";"+"\n";
+         :}
+        |
+         RETURN exp:e SEMI {:
+                RESULT = "return"+" "+e+";"+"\n";
+         :}
+         
+        |
+         LC stmt_seq:s RC {:
+                RESULT = "{"+"\n"+s+"}"+"\n";
+         :}
+        |
+         ID:id LPAREN RPAREN SEMI {:
+                RESULT = id+"()"+";"+"\n";
+         :}
+        |
+         ID:id LPAREN params:p RPAREN SEMI{:
+                RESULT = id+"("+p+")"+";"+"\n";
+         :}
+        |
+         ID:id LPAREN RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"()"+"{"+"\n"+s+"}"+"\n";
+                RESULT ="public static int "+id+"()"+"{"+"\n"+s+"}"+"\n";
+         :}
+        |
+         VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";"+"\n";
+                RESULT = "int "+id+";"+"\n";
+         :}
+        |
+        VAR ID:id LB exp:e RB SEMI{:
+                //RESULT = "var"+" "+id+"["+e+"]"+";"+"\n";
+                RESULT = " int [] "+id+"= new int "+"["+e+"]"+";"+"\n";
+        :}
+        |
+         ID:id LPAREN params:p RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+                RESULT ="public static int "+id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+         :}
+        |
+        MAIN LPAREN RPAREN LC stmt_seq:s RC{:
+                 //RESULT = "main"+"()"+"{"+"\n"+s+"}";
+                 RESULT = "public static void main(String []args)"+"{"+"\n"+s+"}";
+
+         :}
+        |
+         PRINT LPAREN exp:e RPAREN SEMI{:
+              RESULT = "System.out.println"+"("+e+")"+";"+"\n";
+         :}
+     
+        ;
+
+stmt1 ::= IF LPAREN exp:e RPAREN stmt1:s1 ELSE stmt1:s2{:
+                RESULT = "if"+"("+e+")"+"\n"+s1+"else"+" "+s2;
+        :}
+        |
+        WHILE LPAREN exp:e RPAREN stmt1:s {:
+                RESULT = "while"+"("+e+")"+" "+s;
+         :}
+
+         
+        |
+          ID:id RELOP8 exp:e SEMI {:
+                RESULT = id+"="+e+";"+"\n";
+         :}
+        |
+         ID:id LB exp:e1 RB RELOP8 exp:e2 SEMI{:
+                RESULT = id+"["+e1+"]"+"="+e2+";"+"\n";                 
+         :}
+        |
+         ID:id RELOP8 stmt1:s {:
+                RESULT = id +"=" + s ;
+         :}
+        |
+         RETURN SEMI {:
+                RESULT = "return"+";"+"\n";
+         :}
+        |
+          RETURN exp:e SEMI {:
+                RESULT = "return"+" "+e+";"+"\n";
+         :}
+       
+        |
+         LC stmt_seq:s RC{:
+                RESULT = "{"+"\n"+s+"}"+"\n";
+         :}
+        |
+         ID:id LPAREN RPAREN SEMI{:
+                RESULT = id+"()"+";"+"\n";
+         :}
+        |
+         ID:id LPAREN params:p RPAREN SEMI{:
+              RESULT = id+"("+p+")"+";"+"\n";
+         :}
+        |
+         ID:id LPAREN RPAREN LC stmt_seq:s RC{:
+                //RESULT =id+"()"+"{"+"\n"+s+"}"+"\n";
+                RESULT ="public static int "+id+"()"+"{"+"\n"+s+"}"+"\n";
+         :}
+        |
+         ID:id LPAREN params:p RPAREN LC stmt_seq:s RC {:
+                //RESULT =id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+                RESULT ="public static int "+id+"("+p+")"+"{"+"\n"+s+"}"+"\n";
+         :} 
+         |
+         VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";"+"\n";
+                RESULT = " int "+id+";"+"\n";
+         :}
+        |
+         VAR ID:id LB exp:e RB SEMI{:
+                //RESULT = "var"+" "+id+"["+e+"]"+";"+"\n";
+                RESULT = " int [] "+id+"= new int "+"["+e+"]"+";"+"\n";
+         :}
+        |
+        MAIN LPAREN RPAREN LC stmt_seq:s RC{:
+                 //RESULT = "main"+"()"+"{"+"\n"+s+"}";
+                 RESULT = "public static void main(String []args)"+"{"+"\n"+s+"}";
+         :}
+        |
+         PRINT LPAREN exp:e RPAREN SEMI{:
+              RESULT = "System.out.println"+"("+e+")"+";"+"\n";
+         :}
+     
+
+        ;
+
+params ::= params:p1 param:p2{:
+                RESULT = p1+","+p2;
+        :}
+        | 
+         param:p{:
+                RESULT = p;
+         :}
+         ;
+param ::= VAR ID:id SEMI{:
+                //RESULT = "var"+" "+id+";";
+                RESULT = "int "+id;
+        :}
+        |
+         VAR ID:id LB RB SEMI{:
+                //RESULT = "var"+" "+id+"[]"+";";
+                RESULT = "int "+"[] "+id;
+         :}
+        |
+         ID:id SEMI{:
+              RESULT = id;
+         :}
+        |
+         ID:id LB RB SEMI{:
+              RESULT = id;
+         :}
+        |
+         NUMBER:n SEMI{:
+              RESULT = Integer.toString(n.intValue());
+        :}
+         ;
+
+// e<e
+exp ::= exp:e1 RELOP1 exp:e2 {:
+                RESULT = e1+"<"+e2;
+         :}
+      
+        |
+         exp:e1 RELOP2 exp:e2 {:
+                RESULT = e1+"<="+e2;
+         :}
+  
+        |
+         exp:e1 RELOP3 exp:e2 {:
+                RESULT = e1+">"+e2;
+         :} 
+    
+        |
+         exp:e1 RELOP4 exp:e2 {:
+                RESULT = e1+">="+e2;
+         :} 
+ 
+        |
+         exp:e1 RELOP5 exp:e2 {:
+                //e==e
+                RESULT = e1+"=="+e2;
+         :}
+ 
+        |
+         exp:e1 RELOP6 exp:e2  {:
+                //e!=e
+                RESULT = e1+"!="+e2;
+         :}
+  
+        |
+         exp:e1 RELOP7 exp:e2 {:
+                //e&&e
+                RESULT = e1+"&&"+e2;
+         :}
+   
+        |
+         exp:e1 PLUS exp:e2 {:
+                RESULT = e1+"+"+e2;
+         :}
+        |
+         exp:e1 MINUS exp:e2 {:
+                RESULT = e1+"-"+e2;
+         :}
+        |
+         exp:e1 TIMES exp:e2 {:
+                RESULT = e1+"*"+e2;
+         :}
+        | 
+         exp:e1 DIVIDE exp:e2 {:
+                RESULT = e1+"/"+e2;
+         :}
+        |
+         NUMBER:n{:
+                RESULT = Integer.toString(n.intValue());
+         :}
+        |
+         ID:id {:
+                RESULT = id;
+         :}
+        |
+         ID:id LB exp:e RB {:
+                RESULT = id+"["+e+"]";
+         :}
+        |
+         RANDOM LPAREN exp:e RPAREN {:
+                RESULT = "selfRandom"+"("+e+")";
+         :}
+ 
+        |
+         LPAREN exp:e RPAREN {:
+                RESULT = "("+e+")";
+         :}
+     
+        ;
+
